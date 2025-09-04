@@ -161,104 +161,178 @@ const SmartTaskInput: React.FC<SmartTaskInputProps> = ({ onTaskCreated }) => {
         )}
       </div>
 
-      {/* AI Preview */}
-      {showPreview && parsedData && (
+      {/* Enhanced AI Preview */}
+{showPreview && parsedData && (
+  <div style={{
+    background: '#f0f9ff',
+    border: '1px solid #bae6fd',
+    borderRadius: '0.5rem',
+    padding: '1rem',
+    marginBottom: '1rem'
+  }}>
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'space-between',
+      marginBottom: '0.75rem' 
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span>🤖</span>
+        <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#0369a1' }}>
+          AI Analysis
+        </span>
+      </div>
+      
+      {/* Confidence Score */}
+      <div style={{ 
+        fontSize: '0.75rem', 
+        color: '#0369a1',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.25rem'
+      }}>
+        <span>Confidence:</span>
         <div style={{
-          background: '#f0f9ff',
-          border: '1px solid #bae6fd',
-          borderRadius: '0.5rem',
-          padding: '1rem',
-          marginBottom: '1rem'
+          width: '40px',
+          height: '8px',
+          backgroundColor: '#e5e7eb',
+          borderRadius: '4px',
+          overflow: 'hidden'
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            marginBottom: '0.75rem' 
-          }}>
-            <span>🤖</span>
-            <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#0369a1' }}>
-              AI Detected:
-            </span>
-          </div>
-          
-          <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.875rem' }}>
-            <div>
-              <strong>Task:</strong> {parsedData.preview.title}
-            </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <div>
-                <strong>Due:</strong> {formatDueDate(parsedData.preview.due_date)}
-              </div>
-              <div>
-                <strong>Priority:</strong> 
-                <span style={{ 
-                  color: getPriorityColor(parsedData.preview.priority),
-                  fontWeight: '600',
-                  marginLeft: '0.25rem'
-                }}>
-                  {getPriorityText(parsedData.preview.priority)}
-                </span>
-              </div>
-              <div>
-                <strong>Category:</strong> 
-                <span style={{ 
-                  textTransform: 'capitalize',
-                  marginLeft: '0.25rem'
-                }}>
-                  {parsedData.preview.category}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div style={{ 
-            marginTop: '0.75rem', 
-            paddingTop: '0.75rem', 
-            borderTop: '1px solid #bae6fd',
-            display: 'flex',
-            gap: '0.5rem'
-          }}>
-            <button
-              onClick={handleCreateTask}
-              disabled={creating}
-              style={{
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                padding: '0.5rem 1rem',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                cursor: creating ? 'not-allowed' : 'pointer',
-                opacity: creating ? 0.5 : 1,
-                transition: 'all 0.2s'
-              }}
-            >
-              {creating ? 'Creating...' : '✅ Create Task'}
-            </button>
-            
-            <button
-              onClick={() => {
-                setInputText('');
-                setParsedData(null);
-                setShowPreview(false);
-              }}
-              style={{
-                backgroundColor: '#f3f4f6',
-                color: '#374151',
-                border: 'none',
-                padding: '0.5rem 1rem',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                cursor: 'pointer'
-              }}
-            >
-              Clear
-            </button>
-          </div>
+          <div style={{
+            width: `${(parsedData.parsed_task?.confidence?.overall || 0.5) * 100}%`,
+            height: '100%',
+            backgroundColor: (parsedData.parsed_task?.confidence?.overall || 0) > 0.7 ? '#10b981' : 
+                           (parsedData.parsed_task?.confidence?.overall || 0) > 0.4 ? '#f59e0b' : '#ef4444',
+            transition: 'width 0.3s ease'
+          }} />
         </div>
-      )}
+        <span>{Math.round((parsedData.parsed_task?.confidence?.overall || 0.5) * 100)}%</span>
+      </div>
+    </div>
+    
+    <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.875rem' }}>
+      <div>
+        <strong>Task:</strong> {parsedData.preview.title}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.5rem' }}>
+        <div>
+          <strong>Due:</strong> {formatDueDate(parsedData.preview.due_date)}
+          {parsedData.parsed_task?.confidence?.date > 0 && (
+            <span style={{ 
+              fontSize: '0.7rem', 
+              color: parsedData.parsed_task.confidence.date > 0.7 ? '#10b981' : '#f59e0b',
+              marginLeft: '0.25rem'
+            }}>
+              ({Math.round(parsedData.parsed_task.confidence.date * 100)}%)
+            </span>
+          )}
+        </div>
+        
+        <div>
+          <strong>Priority:</strong> 
+          <span style={{ 
+            color: getPriorityColor(parsedData.preview.priority),
+            fontWeight: '600',
+            marginLeft: '0.25rem'
+          }}>
+            {getPriorityText(parsedData.preview.priority)}
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            color: parsedData.parsed_task?.confidence?.priority > 0.6 ? '#10b981' : '#f59e0b',
+            marginLeft: '0.25rem'
+          }}>
+            ({Math.round((parsedData.parsed_task?.confidence?.priority || 0.5) * 100)}%)
+          </span>
+        </div>
+        
+        <div>
+          <strong>Category:</strong> 
+          <span style={{ 
+            textTransform: 'capitalize',
+            marginLeft: '0.25rem'
+          }}>
+            {parsedData.preview.category}
+          </span>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            color: parsedData.parsed_task?.confidence?.category > 0.3 ? '#10b981' : '#f59e0b',
+            marginLeft: '0.25rem'
+          }}>
+            ({Math.round((parsedData.parsed_task?.confidence?.category || 0.1) * 100)}%)
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    {/* Suggestions */}
+    {parsedData.parsed_task?.suggestions?.length > 0 && (
+      <div style={{
+        marginTop: '0.75rem',
+        padding: '0.5rem',
+        backgroundColor: '#fff7ed',
+        border: '1px solid #fed7aa',
+        borderRadius: '0.375rem'
+      }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#ea580c', marginBottom: '0.25rem' }}>
+          💡 Tips to improve accuracy:
+        </div>
+        {parsedData.parsed_task.suggestions.map((suggestion: string, index: number) => (
+          <div key={index} style={{ fontSize: '0.7rem', color: '#9a3412', marginBottom: '0.125rem' }}>
+            • {suggestion}
+          </div>
+        ))}
+      </div>
+    )}
+    
+    <div style={{ 
+      marginTop: '0.75rem', 
+      paddingTop: '0.75rem', 
+      borderTop: '1px solid #bae6fd',
+      display: 'flex',
+      gap: '0.5rem'
+    }}>
+      <button
+        onClick={handleCreateTask}
+        disabled={creating}
+        style={{
+          backgroundColor: '#3b82f6',
+          color: 'white',
+          border: 'none',
+          padding: '0.5rem 1rem',
+          borderRadius: '0.375rem',
+          fontSize: '0.875rem',
+          fontWeight: '500',
+          cursor: creating ? 'not-allowed' : 'pointer',
+          opacity: creating ? 0.5 : 1,
+          transition: 'all 0.2s'
+        }}
+      >
+        {creating ? 'Creating...' : '✅ Create Task'}
+      </button>
+      
+      <button
+        onClick={() => {
+          setInputText('');
+          setParsedData(null);
+          setShowPreview(false);
+        }}
+        style={{
+          backgroundColor: '#f3f4f6',
+          color: '#374151',
+          border: 'none',
+          padding: '0.5rem 1rem',
+          borderRadius: '0.375rem',
+          fontSize: '0.875rem',
+          cursor: 'pointer'
+        }}
+      >
+        Clear
+      </button>
+    </div>
+  </div>
+)}
       
       {/* Examples */}
       <div style={{ marginTop: '1rem' }}>
