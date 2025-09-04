@@ -66,4 +66,9 @@ export const getTaskStats = async () => {
   return response.data;
 };
 
+// NLP parsing
+export const parseNaturalLanguage = async (text: string) => {
+  const response = await api.post('/tasks/parse/', { text });
+  return response.data;
+};
 export default api;

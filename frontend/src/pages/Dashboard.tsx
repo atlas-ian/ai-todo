@@ -2,32 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { healthCheck, getTaskStats } from '../services/api';
 import { TaskStats } from '../types/task';
 import TaskList from '../components/TaskList';
+import SmartTaskInput from '../components/SmartTaskInput';  // Add this import
 
 const Dashboard: React.FC = () => {
   const [healthStatus, setHealthStatus] = useState<any>(null);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // Add this for refreshing
+
+  const loadData = async () => {
+    try {
+      const [health, stats] = await Promise.all([
+        healthCheck(),
+        getTaskStats()
+      ]);
+      setHealthStatus(health);
+      setTaskStats(stats);
+      setError(null);
+    } catch (err) {
+      setError('Failed to connect to backend');
+      console.error('Failed to load data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [health, stats] = await Promise.all([
-          healthCheck(),
-          getTaskStats()
-        ]);
-        setHealthStatus(health);
-        setTaskStats(stats);
-      } catch (err) {
-        setError('Failed to connect to backend');
-        console.error('Failed to load data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
-  }, []);
+  }, [refreshTrigger]);
+
+  // Function to trigger refresh when new task is created
+  const handleTaskCreated = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const cardStyle = {
     background: 'white',
@@ -87,8 +95,11 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Smart Task Input */}
+      <SmartTaskInput onTaskCreated={handleTaskCreated} />
+
       {/* Task List */}
-      <TaskList />
+      <TaskList key={refreshTrigger} />
     </div>
   );
 };
