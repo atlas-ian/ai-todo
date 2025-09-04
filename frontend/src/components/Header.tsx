@@ -11,7 +11,7 @@ const Header: React.FC = () => {
       <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '0 1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>
-            Smart ToDo
+            smart-to-do
           </h1>
           <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
             AI-Powered Task Management

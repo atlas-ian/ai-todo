@@ -16,186 +16,286 @@ class TaskParser:
             logger.warning("spaCy model not found, using basic parsing")
             self.nlp = None
         
-        # Category keywords for classification
+        # Enhanced category keywords with weighted scoring
         self.category_keywords = {
-            'work': [
-                'meeting', 'project', 'deadline', 'office', 'client', 'presentation',
-                'report', 'email', 'call', 'conference', 'team', 'boss', 'colleague',
-                'proposal', 'budget', 'review', 'analysis'
-            ],
-            'personal': [
-                'family', 'home', 'friend', 'dinner', 'lunch', 'birthday', 'anniversary',
-                'vacation', 'holiday', 'visit', 'call mom', 'call dad', 'personal'
-            ],
-            'study': [
-                'study', 'exam', 'assignment', 'homework', 'research', 'book', 'learn',
-                'course', 'lecture', 'tutorial', 'practice', 'review', 'notes'
-            ],
-            'health': [
-                'doctor', 'appointment', 'gym', 'workout', 'exercise', 'jog', 'run',
-                'medicine', 'pharmacy', 'dentist', 'checkup', 'therapy', 'meditation'
-            ],
-            'shopping': [
-                'buy', 'purchase', 'shop', 'groceries', 'store', 'mall', 'order',
-                'amazon', 'online', 'milk', 'bread', 'food', 'clothes'
-            ]
+            'work': {
+                'high': ['meeting', 'deadline', 'project', 'client', 'presentation', 'report', 'proposal'],
+                'medium': ['office', 'email', 'call', 'conference', 'team', 'boss', 'colleague', 'budget'],
+                'low': ['work', 'job', 'business', 'professional', 'corporate']
+            },
+            'personal': {
+                'high': ['birthday', 'anniversary', 'family dinner', 'call mom', 'call dad', 'visit family'],
+                'medium': ['home', 'friend', 'dinner', 'lunch', 'vacation', 'holiday', 'personal'],
+                'low': ['myself', 'own', 'private']
+            },
+            'study': {
+                'high': ['exam', 'assignment', 'homework', 'research paper', 'thesis'],
+                'medium': ['study', 'book', 'learn', 'course', 'lecture', 'tutorial', 'practice'],
+                'low': ['education', 'knowledge', 'skill']
+            },
+            'health': {
+                'high': ['doctor appointment', 'dentist', 'checkup', 'surgery', 'therapy'],
+                'medium': ['gym', 'workout', 'exercise', 'jog', 'run', 'medicine', 'pharmacy'],
+                'low': ['health', 'fitness', 'wellness', 'medical']
+            },
+            'shopping': {
+                'high': ['buy groceries', 'grocery shopping', 'shopping mall', 'amazon order'],
+                'medium': ['buy', 'purchase', 'shop', 'store', 'order', 'milk', 'bread', 'food'],
+                'low': ['get', 'pick up', 'collect']
+            }
         }
         
-        # Priority keywords
+        # Enhanced priority detection
         self.priority_keywords = {
-            4: ['urgent', 'asap', 'emergency', 'critical', 'immediately'],
-            3: ['important', 'high priority', 'soon', 'deadline'],
-            1: ['low priority', 'when possible', 'eventually', 'sometime']
+            4: {
+                'urgent': ['urgent', 'asap', 'emergency', 'critical', 'immediately', 'right now'],
+                'deadline': ['deadline today', 'due today', 'overdue', 'late']
+            },
+            3: {
+                'important': ['important', 'high priority', 'crucial', 'significant', 'major'],
+                'time_sensitive': ['soon', 'deadline', 'due tomorrow', 'this week']
+            },
+            1: {
+                'low': ['low priority', 'when possible', 'eventually', 'sometime', 'if time'],
+                'optional': ['maybe', 'consider', 'think about', 'might']
+            }
+        }
+
+        # Time expressions with better parsing
+        self.time_expressions = {
+            'today': {'days': 0, 'confidence': 0.95},
+            'tomorrow': {'days': 1, 'confidence': 0.95},
+            'tonight': {'days': 0, 'confidence': 0.9, 'time': '20:00'},
+            'this morning': {'days': 0, 'confidence': 0.9, 'time': '09:00'},
+            'this afternoon': {'days': 0, 'confidence': 0.9, 'time': '14:00'},
+            'this evening': {'days': 0, 'confidence': 0.9, 'time': '18:00'},
+            'next week': {'days': 7, 'confidence': 0.8},
+            'next month': {'days': 30, 'confidence': 0.7},
+            'monday': {'weekday': 0, 'confidence': 0.85},
+            'tuesday': {'weekday': 1, 'confidence': 0.85},
+            'wednesday': {'weekday': 2, 'confidence': 0.85},
+            'thursday': {'weekday': 3, 'confidence': 0.85},
+            'friday': {'weekday': 4, 'confidence': 0.85},
+            'saturday': {'weekday': 5, 'confidence': 0.85},
+            'sunday': {'weekday': 6, 'confidence': 0.85},
         }
 
     def parse_task(self, text):
-        """
-        Parse natural language input into structured task data
-        """
+        """Enhanced parsing with confidence scores"""
         result = {
             'title': text,
             'description': None,
             'due_date': None,
-            'priority': 2,  # Default medium priority
+            'priority': 2,
             'category': 'other',
-            'confidence': {}
+            'confidence': {
+                'overall': 0.5,
+                'date': 0.0,
+                'priority': 0.5,
+                'category': 0.1
+            },
+            'suggestions': []
         }
         
         try:
-            # Extract and clean title
-            result['title'] = self._extract_clean_title(text)
-            
-            # Extract due date/time
-            result['due_date'], result['confidence']['date'] = self._extract_date(text)
+            # Extract due date/time first
+            result['due_date'], result['confidence']['date'] = self._extract_date_enhanced(text)
             
             # Extract priority
-            result['priority'], result['confidence']['priority'] = self._extract_priority(text)
+            result['priority'], result['confidence']['priority'] = self._extract_priority_enhanced(text)
             
             # Extract category
-            result['category'], result['confidence']['category'] = self._extract_category(text)
+            result['category'], result['confidence']['category'] = self._extract_category_enhanced(text)
+            
+            # Clean title after extracting other components
+            result['title'] = self._extract_clean_title_enhanced(text, result)
+            
+            # Calculate overall confidence
+            result['confidence']['overall'] = (
+                result['confidence']['date'] * 0.3 +
+                result['confidence']['priority'] * 0.2 +
+                result['confidence']['category'] * 0.3 +
+                0.2  # Base confidence for title extraction
+            )
+            
+            # Add suggestions for improvement
+            result['suggestions'] = self._generate_suggestions(text, result)
             
         except Exception as e:
-            logger.error(f"Error parsing task: {e}")
+            logger.error(f"Enhanced parsing error: {e}")
             
         return result
 
-    def _extract_clean_title(self, text):
-        """Extract clean task title by removing date/time and priority indicators"""
-        # Remove common date patterns
-        date_patterns = [
-            r'\b(today|tomorrow|tonight)\b',
-            r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',
-            r'\b(at \d{1,2}:\d{2}(\s*[ap]m)?)\b',
-            r'\b(in \d+ (minutes?|hours?|days?))\b',
-            r'\b(next week|next month)\b',
-            r'\b(this (morning|afternoon|evening|week))\b',
-        ]
-        
-        # Remove priority indicators
-        priority_patterns = [
-            r'\b(urgent|asap|high priority|important)\b',
-            r'\b(low priority|when possible)\b',
-        ]
-        
-        clean_text = text
-        all_patterns = date_patterns + priority_patterns
-        
-        for pattern in all_patterns:
-            clean_text = re.sub(pattern, '', clean_text, flags=re.IGNORECASE)
-        
-        # Clean up extra whitespace
-        clean_text = re.sub(r'\s+', ' ', clean_text).strip()
-        
-        return clean_text if clean_text else text
-
-    def _extract_date(self, text):
-        """Extract due date from natural language"""
-        # Common time expressions
-        time_patterns = {
-            r'\btoday\b': 0,
-            r'\btomorrow\b': 1,
-            r'\btonig ht\b': 0,
-        }
-        
+    def _extract_date_enhanced(self, text):
+        """Enhanced date extraction with better accuracy"""
         text_lower = text.lower()
+        best_date = None
+        best_confidence = 0.0
         
-        # Check for relative dates
-        for pattern, days_offset in time_patterns.items():
-            if re.search(pattern, text_lower):
-                target_date = timezone.now() + timedelta(days=days_offset)
-                
-                # Try to extract specific time
-                time_match = re.search(r'(\d{1,2}):(\d{2})(\s*[ap]m)?', text_lower)
-                if time_match:
-                    hour = int(time_match.group(1))
-                    minute = int(time_match.group(2))
-                    am_pm = time_match.group(3)
-                    
-                    if am_pm and 'p' in am_pm and hour != 12:
-                        hour += 12
-                    elif am_pm and 'a' in am_pm and hour == 12:
-                        hour = 0
-                        
-                    target_date = target_date.replace(
-                        hour=hour, 
-                        minute=minute, 
-                        second=0, 
-                        microsecond=0
-                    )
-                
-                return target_date.isoformat(), 0.8
-
-        # Try using dateutil for more complex parsing
-        try:
-            # Extract potential date strings
-            date_candidates = re.findall(
-                r'\b(?:next|this)?\s*(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|month)\b|\b\d{1,2}/\d{1,2}\b',
-                text_lower
-            )
-            
-            for candidate in date_candidates:
+        # Check time expressions
+        for expression, config in self.time_expressions.items():
+            if expression in text_lower:
                 try:
-                    parsed_date = dateutil_parser.parse(candidate, fuzzy=True)
-                    if parsed_date > datetime.now():
-                        return timezone.make_aware(parsed_date).isoformat(), 0.6
-                except:
-                    continue
+                    if 'days' in config:
+                        target_date = timezone.now() + timedelta(days=config['days'])
+                    elif 'weekday' in config:
+                        target_date = self._get_next_weekday(config['weekday'])
+                    else:
+                        continue
                     
-        except Exception as e:
-            logger.debug(f"Date parsing error: {e}")
+                    # Apply default time if specified
+                    if 'time' in config:
+                        hour, minute = map(int, config['time'].split(':'))
+                        target_date = target_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                    
+                    # Look for specific time in text
+                    time_match = re.search(r'(?:at\s+)?(\d{1,2}):?(\d{2})?\s*([ap]m)?', text_lower)
+                    if time_match:
+                        hour = int(time_match.group(1))
+                        minute = int(time_match.group(2)) if time_match.group(2) else 0
+                        am_pm = time_match.group(3)
+                        
+                        if am_pm:
+                            if 'p' in am_pm and hour != 12:
+                                hour += 12
+                            elif 'a' in am_pm and hour == 12:
+                                hour = 0
+                        elif hour < 8:  # Assume PM for hours < 8 if no AM/PM specified
+                            hour += 12
+                            
+                        target_date = target_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                        config['confidence'] += 0.1  # Bonus for specific time
+                    
+                    if config['confidence'] > best_confidence:
+                        best_date = target_date
+                        best_confidence = config['confidence']
+                        
+                except Exception as e:
+                    logger.debug(f"Date parsing error for {expression}: {e}")
+                    continue
         
-        return None, 0.0
+        # Try relative expressions like "in 2 hours", "in 3 days"
+        relative_match = re.search(r'in\s+(\d+)\s+(minute|hour|day)s?', text_lower)
+        if relative_match:
+            amount = int(relative_match.group(1))
+            unit = relative_match.group(2)
+            
+            if unit == 'minute':
+                target_date = timezone.now() + timedelta(minutes=amount)
+                confidence = 0.9
+            elif unit == 'hour':
+                target_date = timezone.now() + timedelta(hours=amount)
+                confidence = 0.9
+            elif unit == 'day':
+                target_date = timezone.now() + timedelta(days=amount)
+                confidence = 0.85
+            
+            if confidence > best_confidence:
+                best_date = target_date
+                best_confidence = confidence
+        
+        return best_date.isoformat() if best_date else None, best_confidence
 
-    def _extract_priority(self, text):
-        """Extract priority level from text"""
+    def _extract_priority_enhanced(self, text):
+        """Enhanced priority extraction"""
         text_lower = text.lower()
+        best_priority = 2
+        best_confidence = 0.5
         
-        for priority_level, keywords in self.priority_keywords.items():
-            for keyword in keywords:
-                if keyword in text_lower:
-                    return priority_level, 0.9
+        for priority_level, categories in self.priority_keywords.items():
+            for category, keywords in categories.items():
+                for keyword in keywords:
+                    if keyword in text_lower:
+                        confidence = 0.9 if len(keyword.split()) > 1 else 0.7
+                        if confidence > best_confidence:
+                            best_priority = priority_level
+                            best_confidence = confidence
         
-        # Default medium priority
-        return 2, 0.5
+        # Check for exclamation marks (indicates urgency)
+        exclamation_count = text.count('!')
+        if exclamation_count >= 2 and best_priority == 2:
+            best_priority = 3
+            best_confidence = max(best_confidence, 0.6)
+        
+        return best_priority, best_confidence
 
-    def _extract_category(self, text):
-        """Extract category from text using keyword matching"""
+    def _extract_category_enhanced(self, text):
+        """Enhanced category extraction with weighted scoring"""
         text_lower = text.lower()
         category_scores = {}
         
-        for category, keywords in self.category_keywords.items():
-            score = 0
-            for keyword in keywords:
-                if keyword in text_lower:
-                    # Longer matches get higher scores
-                    score += len(keyword.split())
+        for category, levels in self.category_keywords.items():
+            total_score = 0
+            for level, keywords in levels.items():
+                weight = {'high': 3, 'medium': 2, 'low': 1}[level]
+                for keyword in keywords:
+                    if keyword in text_lower:
+                        total_score += weight * len(keyword.split())
             
-            if score > 0:
-                category_scores[category] = score
+            if total_score > 0:
+                category_scores[category] = total_score
         
         if category_scores:
             best_category = max(category_scores.items(), key=lambda x: x[1])
-            confidence = min(0.9, best_category[1] * 0.3)  # Scale confidence
+            # Normalize confidence score
+            max_possible_score = 15  # Rough estimate
+            confidence = min(0.95, best_category[1] / max_possible_score)
             return best_category[0], confidence
         
         return 'other', 0.1
+
+    def _extract_clean_title_enhanced(self, text, parsed_data):
+        """Clean title by removing detected date/time and priority indicators"""
+        clean_text = text
+        
+        # Remove detected time expressions
+        for expression in self.time_expressions.keys():
+            pattern = r'\b' + re.escape(expression) + r'\b'
+            clean_text = re.sub(pattern, '', clean_text, flags=re.IGNORECASE)
+        
+        # Remove time patterns
+        time_patterns = [
+            r'(?:at\s+)?\d{1,2}:?\d{2}?\s*[ap]m?',
+            r'in\s+\d+\s+(?:minute|hour|day)s?',
+        ]
+        
+        for pattern in time_patterns:
+            clean_text = re.sub(pattern, '', clean_text, flags=re.IGNORECASE)
+        
+        # Remove priority indicators
+        for priority_level, categories in self.priority_keywords.items():
+            for category, keywords in categories.items():
+                for keyword in keywords:
+                    pattern = r'\b' + re.escape(keyword) + r'\b'
+                    clean_text = re.sub(pattern, '', clean_text, flags=re.IGNORECASE)
+        
+        # Clean up whitespace and punctuation
+        clean_text = re.sub(r'[,\-\s]+', ' ', clean_text).strip()
+        clean_text = re.sub(r'\s+', ' ', clean_text)
+        
+        return clean_text if clean_text else text
+
+    def _get_next_weekday(self, weekday):
+        """Get the next occurrence of a specific weekday"""
+        today = timezone.now()
+        days_ahead = weekday - today.weekday()
+        
+        if days_ahead <= 0:  # Target day already happened this week
+            days_ahead += 7
+            
+        return today + timedelta(days=days_ahead)
+
+    def _generate_suggestions(self, text, result):
+        """Generate suggestions for better task input"""
+        suggestions = []
+        
+        if result['confidence']['date'] < 0.5:
+            suggestions.append("Try adding a specific time like 'tomorrow at 2pm' or 'next Monday'")
+        
+        if result['confidence']['category'] < 0.3:
+            suggestions.append("Add context keywords like 'buy', 'meeting', 'study', or 'exercise' to help categorize")
+        
+        if result['confidence']['priority'] < 0.6 and '!' not in text:
+            suggestions.append("Add 'urgent', 'important', or 'low priority' to set priority level")
+        
+        return suggestions
