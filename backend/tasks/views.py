@@ -56,6 +56,44 @@ def toggle_task_completion(request, pk):
     serializer = TaskSerializer(task)
     return Response(serializer.data)
 
+
+from .nlp_parser import TaskParser
+
+# Initialize parser (do this at module level)
+task_parser = TaskParser()
+
+@api_view(['POST'])
+def parse_natural_language(request):
+    """
+    Parse natural language input and return structured task data
+    """
+    text = request.data.get('text', '').strip()
+    
+    if not text:
+        return Response(
+            {'error': 'No text provided'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        parsed_data = task_parser.parse_task(text)
+        return Response({
+            'original_text': text,
+            'parsed_task': parsed_data,
+            'preview': {
+                'title': parsed_data['title'],
+                'due_date': parsed_data['due_date'],
+                'priority': parsed_data['priority'],
+                'category': parsed_data['category'],
+            }
+        })
+    except Exception as e:
+        logger.error(f"NLP parsing error: {e}")
+        return Response(
+            {'error': 'Failed to parse input'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
 @api_view(['GET'])
 def task_stats(request):
     total_tasks = Task.objects.count()
