@@ -9,9 +9,10 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from decouple import config
 from pathlib import Path
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -89,8 +90,7 @@ DATABASES = {
         'PORT': config('DB_PORT'),
     }
 }
-
-
+DATABASES["default"] = dj_database_url.parse("postgresql://ai_todo_db_83jc_user:o6t1wTlmdinpVjEY0VPFSPQ3naGyE51v@dpg-d2snucmmcj7s73ad51tg-a.oregon-postgres.render.com/ai_todo_db_83jc")
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -145,3 +145,26 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+STATIC_URL = '/static/'
+
+# Where collected static files will be placed
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Optional: allow Django to also look inside "static" folders in apps
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+# Use WhiteNoise to serve static files in production
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # <- add here
+    *MIDDLEWARE,  # keep the rest of your middlewares
+]
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

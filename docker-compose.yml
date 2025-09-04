@@ -18,11 +18,11 @@ services:
       - "8000:8000"
     environment:
       - DEBUG=False
-      - DATABASE_NAME=smarttodo_prod
-      - DATABASE_USER=smarttodo_user
-      - DATABASE_PASSWORD=secure_production_password
-      - DATABASE_HOST=db
-      - DATABASE_PORT=5432
+      - DB_NAME=smarttodo_db
+      - DB_USER=smarttodo_user
+      - DB_PASSWORD=smarttodo_pass
+      - DB_HOST=localhost
+      - DB_PORT=5432
     depends_on:
       - db
     volumes:
