@@ -17,8 +17,7 @@ RUN apt-get update \
 
 # Install Python dependencies
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip show gunicorn  # Confirm gunicorn is installed
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Download spaCy model
 RUN python -m spacy download en_core_web_sm
@@ -36,4 +35,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Run application with Gunicorn
-CMD ["gunicorn", "smarttodo.wsgi:application", "--bind", "0.0.0.0:${PORT}"]
+CMD sh -c "gunicorn smarttodo.wsgi:application --bind 0.0.0.0:$PORT"
