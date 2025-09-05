@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// const API_BASE_URL = 'http://localhost:8000/api';
-const API_BASE_URL = "https://django-backemd.onrender.com";
+// ✅ Point directly to the /api/ base path of your backend
+const API_BASE_URL = "https://django-backemd.onrender.com/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,9 +11,10 @@ const api = axios.create({
   timeout: 10000,
 });
 
+// Request interceptor (logs requests)
 api.interceptors.request.use(
   (config) => {
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
@@ -22,24 +23,25 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for error handling
+// Response interceptor (handles errors)
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
     console.error('API Response Error:', error.response?.data || error.message);
-    
+
     if (error.response?.status === 500) {
       console.error('Server Error - Check backend logs');
     } else if (error.response?.status === 404) {
       console.error('API Endpoint Not Found');
     }
-    
+
     return Promise.reject(error);
   }
 );
 
+// ---------------------
+// API Endpoints
+// ---------------------
 
 // Health check
 export const healthCheck = async () => {
@@ -47,7 +49,7 @@ export const healthCheck = async () => {
   return response.data;
 };
 
-// Task API functions
+// Task list (with optional filters)
 export const getTasks = async (filters?: {
   completed?: boolean;
   category?: string;
@@ -63,11 +65,12 @@ export const getTasks = async (filters?: {
   if (filters?.priority) {
     params.append('priority', filters.priority.toString());
   }
-  
+
   const response = await api.get(`/tasks/?${params.toString()}`);
   return response.data;
 };
 
+// Create a new task
 export const createTask = async (taskData: {
   title: string;
   description?: string;
@@ -79,20 +82,24 @@ export const createTask = async (taskData: {
   return response.data;
 };
 
+// Update an existing task
 export const updateTask = async (id: number, taskData: any) => {
   const response = await api.patch(`/tasks/${id}/`, taskData);
   return response.data;
 };
 
+// Delete a task
 export const deleteTask = async (id: number) => {
   await api.delete(`/tasks/${id}/`);
 };
 
+// Toggle task completion
 export const toggleTaskCompletion = async (id: number) => {
   const response = await api.patch(`/tasks/${id}/toggle/`);
   return response.data;
 };
 
+// Get task statistics
 export const getTaskStats = async () => {
   const response = await api.get('/tasks/stats/');
   return response.data;
@@ -103,4 +110,5 @@ export const parseNaturalLanguage = async (text: string) => {
   const response = await api.post('/tasks/parse/', { text });
   return response.data;
 };
+
 export default api;
