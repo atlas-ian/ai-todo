@@ -28,7 +28,6 @@
     "deploy:vercel": "vercel --prod",
     "analyze": "npm run build && npx serve -s build"
   },
-  
   "eslintConfig": {
     "extends": [
       "react-app",
