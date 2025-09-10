@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Task, TaskFilters } from '../types/task';
 import { getTasks, toggleTaskCompletion, deleteTask } from '../services/api';
 import TaskItem from './TaskItem';
+import TaskEditModal from './TaskEditModal'; // Add this import
 
 const TaskList: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<TaskFilters>({});
+  const [editingTask, setEditingTask] = useState<Task | null>(null); // Add this state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // Add this state
 
   const loadTasks = async () => {
     try {
@@ -33,21 +36,37 @@ const TaskList: React.FC = () => {
     }
   };
 
+  // Updated handleEditTask function
   const handleEditTask = (task: Task) => {
-    // TODO: Implement edit functionality
-    console.log('Edit task:', task);
-    alert('Edit functionality coming soon!');
+    setEditingTask(task);
+    setIsEditModalOpen(true);
   };
 
+  // Updated handleDeleteTask with better confirmation
   const handleDeleteTask = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
+    const task = tasks.find(t => t.id === id);
+    const confirmMessage = `Are you sure you want to delete "${task?.title}"?\n\nThis action cannot be undone.`;
+    
+    if (window.confirm(confirmMessage)) {
       try {
         await deleteTask(id);
         loadTasks(); // Refresh list
       } catch (error) {
         console.error('Failed to delete task:', error);
+        alert('Failed to delete task. Please try again.');
       }
     }
+  };
+
+  // Handler for when edit modal closes
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
+    setEditingTask(null);
+  };
+
+  // Handler for when task is updated
+  const handleTaskUpdated = () => {
+    loadTasks(); // Refresh the task list
   };
 
   const containerStyle = {
@@ -69,88 +88,100 @@ const TaskList: React.FC = () => {
   }
 
   return (
-    <div style={containerStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-          Your Tasks ({tasks.length})
-        </h2>
-        
-        {/* Filter Controls */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <select
-            value={filters.completed === undefined ? 'all' : filters.completed.toString()}
-            onChange={(e) => {
-              const value = e.target.value;
-              setFilters(prev => ({
-                ...prev,
-                completed: value === 'all' ? undefined : value === 'true'
-              }));
-            }}
-            style={{
-              padding: '0.25rem 0.5rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.25rem',
-              fontSize: '0.875rem'
-            }}
-          >
-            <option value="all">All Tasks</option>
-            <option value="false">Pending</option>
-            <option value="true">Completed</option>
-          </select>
+    <>
+      <div style={containerStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+            Your Tasks ({tasks.length})
+          </h2>
           
-          <select
-            value={filters.category || 'all'}
-            onChange={(e) => {
-              const value = e.target.value;
-              setFilters(prev => ({
-                ...prev,
-                category: value === 'all' ? undefined : value
-              }));
-            }}
-            style={{
-              padding: '0.25rem 0.5rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.25rem',
-              fontSize: '0.875rem'
-            }}
-          >
-            <option value="all">All Categories</option>
-            <option value="personal">Personal</option>
-            <option value="work">Work</option>
-            <option value="study">Study</option>
-            <option value="health">Health</option>
-            <option value="shopping">Shopping</option>
-          </select>
-        </div>
-      </div>
-      
-      {tasks.length === 0 ? (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '3rem', 
-          color: '#6b7280',
-          backgroundColor: '#f9fafb',
-          borderRadius: '0.5rem'
-        }}>
-          <div style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No tasks found</div>
-          <div style={{ fontSize: '0.875rem' }}>
-            {Object.keys(filters).length > 0 ? 'Try adjusting your filters' : 'Create your first task!'}
+          {/* Filter Controls */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <select
+              value={filters.completed === undefined ? 'all' : filters.completed.toString()}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFilters(prev => ({
+                  ...prev,
+                  completed: value === 'all' ? undefined : value === 'true'
+                }));
+              }}
+              style={{
+                padding: '0.25rem 0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.25rem',
+                fontSize: '0.875rem'
+              }}
+            >
+              <option value="all">All Tasks</option>
+              <option value="false">Pending</option>
+              <option value="true">Completed</option>
+            </select>
+            
+            <select
+              value={filters.category || 'all'}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFilters(prev => ({
+                  ...prev,
+                  category: value === 'all' ? undefined : value
+                }));
+              }}
+              style={{
+                padding: '0.25rem 0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.25rem',
+                fontSize: '0.875rem'
+              }}
+            >
+              <option value="all">All Categories</option>
+              <option value="personal">Personal</option>
+              <option value="work">Work</option>
+              <option value="study">Study</option>
+              <option value="health">Health</option>
+              <option value="shopping">Shopping</option>
+            </select>
           </div>
         </div>
-      ) : (
-        <div>
-          {tasks.map(task => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={handleToggleTask}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-            />
-          ))}
-        </div>
+        
+        {tasks.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '3rem', 
+            color: '#6b7280',
+            backgroundColor: '#f9fafb',
+            borderRadius: '0.5rem'
+          }}>
+            <div style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No tasks found</div>
+            <div style={{ fontSize: '0.875rem' }}>
+              {Object.keys(filters).length > 0 ? 'Try adjusting your filters' : 'Create your first task!'}
+            </div>
+          </div>
+        ) : (
+          <div>
+            {tasks.map(task => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onToggle={handleToggleTask}
+                onEdit={handleEditTask}
+                onDelete={handleDeleteTask}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Edit Modal */}
+      {editingTask && (
+        <TaskEditModal
+          task={editingTask}
+          isOpen={isEditModalOpen}
+          onClose={handleEditModalClose}
+          onTaskUpdated={handleTaskUpdated}
+        />
       )}
-    </div>
+    </>
   );
 };
 
