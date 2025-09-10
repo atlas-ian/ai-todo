@@ -19,7 +19,6 @@ DEFAULT_ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
 ]
-# Allow render backend host if provided; fall back to code default list
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default=",".join(DEFAULT_ALLOWED_HOSTS))
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS.split(",") if h.strip()]
 
@@ -38,7 +37,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # serve static files in production
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -67,15 +65,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "smarttodo.wsgi.application"
 
-# Database (single source of truth)
-# Render provides DATABASE_URL; enable SSL by default when present
+# Database
 DATABASE_URL = config("DATABASE_URL", default=None)
+DB_SSL_REQUIRE = config("DB_SSL_REQUIRE", default=(not DEBUG), cast=bool)
 if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=True,
+            ssl_require=DB_SSL_REQUIRE,
         )
     }
 else:
@@ -101,7 +99,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Removed whitenoise for local development
 
 # Default PK
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -116,7 +114,9 @@ REST_FRAMEWORK = {
 # CORS settings
 DEFAULT_CORS_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
 ]
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default=",".join(DEFAULT_CORS_ORIGINS))
 CORS_ALLOWED_ORIGINS = [o.strip() for o in CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
