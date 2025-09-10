@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// ✅ Point directly to the /api/ base path of your backend
-const API_BASE_URL = "https://django-backemd.onrender.com/api";
+// ✅ Use env-driven base URL (configure REACT_APP_API_URL in deployment)
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,

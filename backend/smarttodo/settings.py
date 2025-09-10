@@ -14,11 +14,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY", default="unsafe-secret-key")  
 DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = [
-    "django-backend.onrender.com",   # ✅ ensure correct backend URL
+# Hosts
+DEFAULT_ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
 ]
+# Allow render backend host if provided; fall back to code default list
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default=",".join(DEFAULT_ALLOWED_HOSTS))
+ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS.split(",") if h.strip()]
 
 # Application definition
 INSTALLED_APPS = [
@@ -65,11 +68,20 @@ TEMPLATES = [
 WSGI_APPLICATION = "smarttodo.wsgi.application"
 
 # Database (single source of truth)
-DATABASES = {
-    "default": dj_database_url.config(
-        default=config("DATABASE_URL")  # Render provides DATABASE_URL env var
-    )
-}
+# Render provides DATABASE_URL; enable SSL by default when present
+DATABASE_URL = config("DATABASE_URL", default=None)
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASES = {
+        "default": dj_database_url.config()
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -102,8 +114,9 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
+DEFAULT_CORS_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://ai-todo-1.onrender.com",  # ✅ no trailing slash
 ]
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default=",".join(DEFAULT_CORS_ORIGINS))
+CORS_ALLOWED_ORIGINS = [o.strip() for o in CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
