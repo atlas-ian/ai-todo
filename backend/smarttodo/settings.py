@@ -1,26 +1,17 @@
 """
-Django settings for smarttodo project.
+Django settings for smarttodo project (local only).
 """
 
 import os
-from decouple import config
 from pathlib import Path
-import dj_database_url
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security
-SECRET_KEY = config("SECRET_KEY", default="unsafe-secret-key")  
-DEBUG = config("DEBUG", default=True, cast=bool)
-
-# Hosts
-DEFAULT_ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-]
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default=",".join(DEFAULT_ALLOWED_HOSTS))
-ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS.split(",") if h.strip()]
+SECRET_KEY = "dev-secret-key"  # Only for local dev
+DEBUG = True
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 # Application definition
 INSTALLED_APPS = [
@@ -65,21 +56,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "smarttodo.wsgi.application"
 
-# Database
-DATABASE_URL = config("DATABASE_URL", default=None)
-DB_SSL_REQUIRE = config("DB_SSL_REQUIRE", default=(not DEBUG), cast=bool)
-if DATABASE_URL:
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            ssl_require=DB_SSL_REQUIRE,
-        )
+# Database (PostgreSQL)
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "todo_db",
+        "USER": "postgres",
+        "PASSWORD": "postgres",
+        "HOST": "localhost",
+        "PORT": "5432",
     }
-else:
-    DATABASES = {
-        "default": dj_database_url.config()
+}
+
+# If you want SQLite instead, replace above with:
+"""
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
+}
+"""
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -99,7 +96,6 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-# Removed whitenoise for local development
 
 # Default PK
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -111,12 +107,5 @@ REST_FRAMEWORK = {
     ]
 }
 
-# CORS settings
-DEFAULT_CORS_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-]
-CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default=",".join(DEFAULT_CORS_ORIGINS))
-CORS_ALLOWED_ORIGINS = [o.strip() for o in CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
+# CORS settings (React frontend)
+CORS_ALLOW_ALL_ORIGINS = True
