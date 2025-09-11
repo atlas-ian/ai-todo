@@ -22,22 +22,25 @@ const TaskItem: React.FC<TaskItemProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Priority colors and labels
-  const priorityConfig = {
-    1: { color: 'bg-green-100 text-green-800 border-green-200', label: 'Low' },
-    2: { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Medium' },
-    3: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'High' },
-    4: { color: 'bg-red-100 text-red-800 border-red-200', label: 'Urgent' }
+  // Priority colors (matching your original style)
+  const getPriorityColor = (priority: number) => {
+    switch (priority) {
+      case 4: return '#dc2626'; // Red - Urgent
+      case 3: return '#f59e0b'; // Orange - High
+      case 2: return '#3b82f6'; // Blue - Medium
+      case 1: return '#10b981'; // Green - Low
+      default: return '#6b7280'; // Gray
+    }
   };
 
-  // Category colors
-  const categoryConfig = {
-    personal: 'bg-purple-100 text-purple-800',
-    work: 'bg-blue-100 text-blue-800',
-    study: 'bg-indigo-100 text-indigo-800',
-    health: 'bg-green-100 text-green-800',
-    shopping: 'bg-orange-100 text-orange-800',
-    other: 'bg-gray-100 text-gray-800'
+  const getPriorityText = (priority: number) => {
+    switch (priority) {
+      case 4: return 'Urgent';
+      case 3: return 'High';
+      case 2: return 'Medium';
+      case 1: return 'Low';
+      default: return 'Normal';
+    }
   };
 
   // Format due date (matching your existing format)
@@ -47,6 +50,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Event handlers - Fixed to use proper event types
   const handleTaskClick = (e: React.MouseEvent) => {
     // Don't toggle if clicking on buttons or checkbox
     if ((e.target as HTMLElement).closest('button, input')) {
@@ -58,12 +62,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
     }
   };
 
-  const handleCheckboxClick = (e: React.MouseEvent) => {
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     onToggle(task.id);
   };
 
-  const handleSelectClick = (e: React.MouseEvent) => {
+  const handleSelectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     if (onSelect) {
       onSelect(task.id);
@@ -107,7 +111,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={handleSelectClick}
+            onChange={handleSelectChange}
             style={{ 
               marginTop: '0.25rem',
               transform: 'scale(1.2)',
@@ -120,7 +124,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
         <input
           type="checkbox"
           checked={task.completed}
-          onChange={handleCheckboxClick}
+          onChange={handleCheckboxChange}
           style={{ 
             marginTop: '0.25rem',
             transform: 'scale(1.2)',
@@ -161,7 +165,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
               fontWeight: '500',
               padding: '0.125rem 0.5rem',
               borderRadius: '0.375rem',
-              textTransform: 'capitalize'
+              textTransform: 'capitalize' as const
             }}>
               {task.category}
             </span>
