@@ -1,187 +1,270 @@
-import React, { useState, useEffect } from 'react';
-import { Task, TaskFilters } from '../types/task';
-import { getTasks, toggleTaskCompletion, deleteTask } from '../services/api';
+import React, { useState, useCallback } from 'react';
+import { Task } from '../types/task';
+import { updateTask, deleteTask } from '../services/api';
 import TaskItem from './TaskItem';
-import TaskEditModal from './TaskEditModal'; // Add this import
 
-const TaskList: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<TaskFilters>({});
-  const [editingTask, setEditingTask] = useState<Task | null>(null); // Add this state
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // Add this state
+interface TaskListProps {
+  tasks: Task[];
+  onTaskUpdate: () => void;
+}
 
-  const loadTasks = async () => {
+// Add the bulkDeleteTasks function directly here for now
+const bulkDeleteTasks = async (taskIds: number[]): Promise<void> => {
+  try {
+    await Promise.all(taskIds.map(id => deleteTask(id)));
+  } catch (error) {
+    console.error('Failed to bulk delete tasks:', error);
+    throw error;
+  }
+};
+
+const TaskList: React.FC<TaskListProps> = ({ tasks, onTaskUpdate }) => {
+  // Phase 1 - Edit Modal State (if you have TaskEditModal)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Phase 2 - Bulk Operations State
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  // Toggle task completion
+  const handleToggleTask = useCallback(async (taskId: number) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
     try {
-      setLoading(true);
-      const data = await getTasks(filters);
-      setTasks(data);
-    } catch (error) {
-      console.error('Failed to load tasks:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTasks();
-  }, [filters]);
-
-  const handleToggleTask = async (id: number) => {
-    try {
-      await toggleTaskCompletion(id);
-      loadTasks(); // Refresh list
+      await updateTask(taskId, { ...task, completed: !task.completed });
+      onTaskUpdate();
     } catch (error) {
       console.error('Failed to toggle task:', error);
     }
-  };
+  }, [tasks, onTaskUpdate]);
 
-  // Updated handleEditTask function
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-    setIsEditModalOpen(true);
-  };
-
-  // Updated handleDeleteTask with better confirmation
-  const handleDeleteTask = async (id: number) => {
-    const task = tasks.find(t => t.id === id);
-    const confirmMessage = `Are you sure you want to delete "${task?.title}"?\n\nThis action cannot be undone.`;
+  // Phase 1 - Edit functionality
+  const handleEditTask = useCallback((task: Task) => {
+    // For now, just show alert until TaskEditModal is properly implemented
+    alert(`Edit functionality for: ${task.title}\nThis will be implemented with the TaskEditModal component.`);
     
-    if (window.confirm(confirmMessage)) {
-      try {
-        await deleteTask(id);
-        loadTasks(); // Refresh list
-      } catch (error) {
-        console.error('Failed to delete task:', error);
-        alert('Failed to delete task. Please try again.');
-      }
+    // When TaskEditModal is ready:
+    // setEditingTask(task);
+    // setIsEditModalOpen(true);
+  }, []);
+
+  // Phase 2 - Delete functionality with confirmation
+  const handleDeleteTask = useCallback(async (taskId: number) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const confirmed = window.confirm(`Are you sure you want to delete "${task.title}"?`);
+    if (!confirmed) return;
+
+    try {
+      await deleteTask(taskId);
+      onTaskUpdate();
+      
+      // Remove from selection if it was selected
+      setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
+    } catch (error) {
+      console.error('Failed to delete task:', error);
     }
-  };
+  }, [tasks, onTaskUpdate]);
 
-  // Handler for when edit modal closes
-  const handleEditModalClose = () => {
-    setIsEditModalOpen(false);
-    setEditingTask(null);
-  };
+  // Phase 2 - Bulk delete functionality
+  const handleBulkDelete = useCallback(async (taskIds: number[]) => {
+    const taskTitles = tasks.filter(t => taskIds.includes(t.id)).map(t => t.title);
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${taskIds.length} tasks?\n\n${taskTitles.slice(0, 3).join('\n')}${taskIds.length > 3 ? `\n...and ${taskIds.length - 3} more` : ''}`
+    );
+    
+    if (!confirmed) return;
 
-  // Handler for when task is updated
-  const handleTaskUpdated = () => {
-    loadTasks(); // Refresh the task list
-  };
+    try {
+      await bulkDeleteTasks(taskIds);
+      onTaskUpdate();
+      setSelectedTaskIds([]);
+      setIsSelectionMode(false);
+    } catch (error) {
+      console.error('Failed to bulk delete tasks:', error);
+    }
+  }, [tasks, onTaskUpdate]);
 
-  const containerStyle = {
-    background: 'white',
-    padding: '1.5rem',
-    borderRadius: '0.5rem',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e5e7eb'
-  };
+  // Phase 2 - Selection management
+  const handleTaskSelect = useCallback((taskId: number) => {
+    setSelectedTaskIds(prev => {
+      if (prev.includes(taskId)) {
+        const newSelection = prev.filter(id => id !== taskId);
+        // Exit selection mode if no tasks selected
+        if (newSelection.length === 0) {
+          setIsSelectionMode(false);
+        }
+        return newSelection;
+      } else {
+        // Enter selection mode when first task is selected
+        if (prev.length === 0) {
+          setIsSelectionMode(true);
+        }
+        return [...prev, taskId];
+      }
+    });
+  }, []);
 
-  if (loading) {
+  const handleSelectAll = useCallback(() => {
+    setSelectedTaskIds(tasks.map(task => task.id));
+    setIsSelectionMode(true);
+  }, [tasks]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedTaskIds([]);
+    setIsSelectionMode(false);
+  }, []);
+
+  if (!tasks || tasks.length === 0) {
     return (
-      <div style={containerStyle}>
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-          Loading tasks...
+      <div style={{
+        textAlign: 'center',
+        padding: '3rem 1rem',
+        color: '#6b7280'
+      }}>
+        <div style={{
+          width: '4rem',
+          height: '4rem',
+          margin: '0 auto 1rem',
+          background: '#f3f4f6',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <svg style={{ width: '2rem', height: '2rem' }} fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
         </div>
+        <h3 style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+          No tasks yet
+        </h3>
+        <p style={{ fontSize: '0.875rem' }}>
+          Create your first task using the smart input above.
+        </p>
       </div>
     );
   }
 
   return (
-    <>
-      <div style={containerStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-            Your Tasks ({tasks.length})
-          </h2>
+    <div style={{ maxWidth: '100%' }}>
+      {/* Phase 2 - Simple Bulk Operations Bar */}
+      {selectedTaskIds.length > 0 && (
+        <div style={{
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          marginBottom: '1rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>
+              {selectedTaskIds.length} of {tasks.length} selected
+            </span>
+            <button
+              onClick={handleSelectAll}
+              style={{
+                fontSize: '0.75rem',
+                color: '#3b82f6',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Select All
+            </button>
+          </div>
           
-          {/* Filter Controls */}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <select
-              value={filters.completed === undefined ? 'all' : filters.completed.toString()}
-              onChange={(e) => {
-                const value = e.target.value;
-                setFilters(prev => ({
-                  ...prev,
-                  completed: value === 'all' ? undefined : value === 'true'
-                }));
-              }}
+            <button
+              onClick={() => handleBulkDelete(selectedTaskIds)}
               style={{
-                padding: '0.25rem 0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.25rem',
-                fontSize: '0.875rem'
+                background: '#dc2626',
+                color: 'white',
+                border: 'none',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                cursor: 'pointer'
               }}
             >
-              <option value="all">All Tasks</option>
-              <option value="false">Pending</option>
-              <option value="true">Completed</option>
-            </select>
-            
-            <select
-              value={filters.category || 'all'}
-              onChange={(e) => {
-                const value = e.target.value;
-                setFilters(prev => ({
-                  ...prev,
-                  category: value === 'all' ? undefined : value
-                }));
-              }}
+              Delete Selected
+            </button>
+            <button
+              onClick={handleDeselectAll}
               style={{
-                padding: '0.25rem 0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.25rem',
-                fontSize: '0.875rem'
+                background: '#f3f4f6',
+                color: '#374151',
+                border: 'none',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '0.375rem',
+                fontSize: '0.875rem',
+                cursor: 'pointer'
               }}
             >
-              <option value="all">All Categories</option>
-              <option value="personal">Personal</option>
-              <option value="work">Work</option>
-              <option value="study">Study</option>
-              <option value="health">Health</option>
-              <option value="shopping">Shopping</option>
-            </select>
+              Cancel
+            </button>
           </div>
         </div>
-        
-        {tasks.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '3rem', 
-            color: '#6b7280',
-            backgroundColor: '#f9fafb',
-            borderRadius: '0.5rem'
-          }}>
-            <div style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>No tasks found</div>
-            <div style={{ fontSize: '0.875rem' }}>
-              {Object.keys(filters).length > 0 ? 'Try adjusting your filters' : 'Create your first task!'}
-            </div>
-          </div>
-        ) : (
-          <div>
-            {tasks.map(task => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onToggle={handleToggleTask}
-                onEdit={handleEditTask}
-                onDelete={handleDeleteTask}
-              />
-            ))}
-          </div>
-        )}
+      )}
+
+      {/* Selection Mode Toggle */}
+      {!isSelectionMode && tasks.length > 1 && (
+        <div style={{
+          marginBottom: '1rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0.5rem',
+          background: '#f9fafb',
+          borderRadius: '0.5rem',
+          border: '1px solid #e5e7eb'
+        }}>
+          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+            {tasks.length} tasks • Click to select multiple tasks
+          </span>
+          <button
+            onClick={() => setIsSelectionMode(true)}
+            style={{
+              fontSize: '0.75rem',
+              padding: '0.25rem 0.75rem',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              cursor: 'pointer'
+            }}
+          >
+            Select Tasks
+          </button>
+        </div>
+      )}
+
+      {/* Task List */}
+      <div>
+        {tasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            onToggle={handleToggleTask}
+            onEdit={handleEditTask}
+            onDelete={handleDeleteTask}
+            isSelected={selectedTaskIds.includes(task.id)}
+            onSelect={handleTaskSelect}
+            showSelection={isSelectionMode}
+          />
+        ))}
       </div>
 
-      {/* Edit Modal */}
-      {editingTask && (
-        <TaskEditModal
-          task={editingTask}
-          isOpen={isEditModalOpen}
-          onClose={handleEditModalClose}
-          onTaskUpdated={handleTaskUpdated}
-        />
-      )}
-    </>
+      {/* Future: Phase 1 Edit Modal would go here when ready */}
+    </div>
   );
 };
 
