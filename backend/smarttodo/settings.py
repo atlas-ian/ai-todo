@@ -1,19 +1,28 @@
 """
-Django settings for smarttodo project (local only).
+Django settings for smarttodo project.
+Works in both local dev and production (Render).
 """
 
 import os
 from pathlib import Path
+from decouple import config
+import dj_database_url
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Security
-SECRET_KEY = "dev-secret-key"  # Only for local dev
-DEBUG = True
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# -------------------------
+# Security & Debug
+# -------------------------
+SECRET_KEY = config("SECRET_KEY", default="dev-secret-key")  # use env var in prod
+DEBUG = config("DEBUG", default=True, cast=bool)
 
-# Application definition
+# Allowed hosts
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
+
+# -------------------------
+# Applications
+# -------------------------
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -26,6 +35,9 @@ INSTALLED_APPS = [
     "tasks",
 ]
 
+# -------------------------
+# Middleware
+# -------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -37,7 +49,15 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# Add whitenoise in production for static files
+if not DEBUG:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+# -------------------------
+# URL / WSGI
+# -------------------------
 ROOT_URLCONF = "smarttodo.urls"
+WSGI_APPLICATION = "smarttodo.wsgi.application"
 
 TEMPLATES = [
     {
@@ -54,9 +74,10 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "smarttodo.wsgi.application"
-
-# Database (PostgreSQL)
+# -------------------------
+# Database
+# -------------------------
+# Local default (Postgres)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -68,17 +89,17 @@ DATABASES = {
     }
 }
 
-# If you want SQLite instead, replace above with:
-"""
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
-"""
+# Override with DATABASE_URL in production
+if config("DATABASE_URL", default=None):
+    DATABASES["default"] = dj_database_url.config(
+        default=config("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=not DEBUG,
+    )
 
-# Password validation
+# -------------------------
+# Passwords
+# -------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -86,26 +107,48 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# -------------------------
 # Internationalization
+# -------------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+# -------------------------
 # Static files
+# -------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
-# Default PK
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# When using whitenoise
+if not DEBUG:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# -------------------------
 # REST Framework
+# -------------------------
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ]
 }
 
-# CORS settings (React frontend)
-CORS_ALLOW_ALL_ORIGINS = True
+# -------------------------
+# CORS
+# -------------------------
+if DEBUG:
+    # Local dev: allow everything
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    # Prod: restrict to frontend domain
+    CORS_ALLOWED_ORIGINS = config(
+        "CORS_ALLOWED_ORIGINS",
+        default="https://your-frontend.vercel.app",
+    ).split(",")  # comma separated list
+
+# -------------------------
+# Default PK
+# -------------------------
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
